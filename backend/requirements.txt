@@ -1,0 +1,31 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+sqlalchemy
+psycopg[binary]
+redis
+minio
+qdrant-client
+python-multipart
+python-dotenv
+langchain
+langchain-community
+langchain-openai
+langgraph
+langgraph-checkpoint-postgres
+langsmith
+openai
+httpx
+# 文档解析工具
+PyPDF2
+python-docx
+openpyxl
+# 联网搜索工具
+tavily-python
+# Python 代码沙箱
+e2b-code-interpreter
+# 用户认证
+bcrypt
+python-jose[cryptography]
+email-validator
