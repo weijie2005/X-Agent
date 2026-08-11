@@ -1,0 +1,23 @@
+Python编程基础
+
+Python是一种高级编程语言，由Guido van Rossum于1991年创建。
+Python具有简单易学、代码可读性强、跨平台等特点。
+
+主要特点：
+1. 语法简洁清晰
+2. 面向对象编程
+3. 丰富的标准库
+4. 跨平台兼容性好
+
+Python广泛应用于：
+- Web开发（Django, Flask）
+- 数据科学（NumPy, Pandas）
+- 人工智能（TensorFlow, PyTorch）
+- 自动化脚本
+- 网络爬虫
+
+学习Python的建议：
+1. 从基础语法开始
+2. 多做练习项目
+3. 阅读官方文档
+4. 参与开源项目
