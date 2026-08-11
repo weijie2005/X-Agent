@@ -1,0 +1,84 @@
+version: "3.8"
+
+services:
+  # 数据库
+  postgres:
+    image: postgres:16-alpine
+    container_name: agent-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_DB: ${PG_DB}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 缓存短期记忆
+  redis:
+    image: redis:7-alpine
+    container_name: agent-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # 向量库 RAG + 语义记忆
+  qdrant:
+    image: qdrant/qdrant:v1.12.0
+    container_name: agent-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  # 对象存储，存放上传PDF/Word/Excel原始文件
+  minio:
+    image: minio/minio:latest
+    container_name: agent-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    command: server /data --console-address ":9001"
+
+  # 日志收集 loki
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: agent-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki_data:/loki
+
+  # Playwright独立服务：PDF渲染，不与业务后端混编
+  # TODO: 开发PDF生成功能时取消注释，并配置HTTP服务
+  # playwright-service:
+  #   image: mcr.microsoft.com/playwright:v1.48.0-jammy
+  #   container_name: agent-playwright
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8050:8050"
+  #   # 此处可放入简单http服务，接收html，返回pdf二进制流；
+  #   # FastAPI后端通过 http://playwright-service:8050 调用生成PDF
+
+volumes:
+  pg_data:
+  redis_data:
+  qdrant_data:
+  minio_data:
+  loki_data:
