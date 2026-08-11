@@ -66,14 +66,49 @@ X-Agent 是一个企业级智能对话系统，采用前后端分离架构，集
 
 #### 后端技术栈
 
+**核心框架**
 - **语言**: Python 3.12
 - **Web 框架**: FastAPI + Uvicorn
 - **AI 框架**: LangChain + LangGraph + LangSmith
-- **数据库**: PostgreSQL 16
-- **缓存**: Redis 7
-- **向量数据库**: Qdrant v1.12
-- **对象存储**: MinIO
-- **LLM**: 支持 OpenAI、DeepSeek、通义千问等多种模型
+
+**数据存储**
+- **数据库**: PostgreSQL 16（关系型数据、会话管理、用户信息）
+- **缓存**: Redis 7（短期记忆、会话缓存）
+- **向量数据库**: Qdrant v1.12（RAG 向量检索、语义记忆）
+- **对象存储**: MinIO（文件存储、文档原始文件）
+
+**LLM 支持**
+- 支持 OpenAI、DeepSeek、通义千问等多种模型
+- 兼容 OpenAI API 格式
+
+**RAG 知识库技术栈**
+- **Agentic RAG**: Agent 自主判断检索策略，决定是否检索、检索几轮、是否需要补充检索
+- **CRAG 纠错系统**: 检索结果有效性验证、无效结果丢弃、二次补充检索
+- **Embedding 引擎**: 
+  - 支持 DashScope（阿里通义千问 Embedding）
+  - 支持 OpenAI Embeddings
+  - 批量向量化处理
+- **混合检索系统**:
+  - 语义检索（向量相似度）
+  - 关键词检索（BM25 + TF-IDF）
+  - 元数据过滤
+  - 结果重排（Reranking）
+- **文档处理**:
+  - 文档解析（PDF、Word、Excel）
+  - 文档清洗（去除特殊字符、页眉页脚）
+  - 文档切片（语义切片、结构切片、滑动窗口）
+  - 元数据提取
+
+**工具生态**
+- **计算器**: 数学计算
+- **联网搜索**: Tavily API
+- **文档解析**: PyPDF2、python-docx、openpyxl
+- **Python 执行**: E2B Code Interpreter（沙箱环境）
+
+**安全与管控**
+- **安全拦截**: Prompt 注入防护、数据脱敏、工具白名单
+- **审计系统**: 全链路日志记录
+- **容错系统**: 超时重试、熔断器、任务恢复
 
 #### 基础设施
 
