@@ -119,6 +119,7 @@
 ### 阶段7：前端Chatbot-UI定制开发（图表+PDF导出）
     目标：前端支持流式对话、表格列表渲染、双图表渲染、完整PDF导出
 执行步骤
+0.  前端WEB UI使用简约大气、漂亮的风格，尽量使用极简的图标和颜色方案，使用Vue 3框架开发
 1.	部署Chatbot-UI基础版本，对接FastAPI后端SSE接口
 2.	前端安装依赖：markdown-it-mermaid、echarts
 3.	改造渲染引擎：        
