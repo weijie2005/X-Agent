@@ -363,6 +363,76 @@ class Settings(BaseSettings):
     - text-embedding-v2
     """
     
+    # ==================== Harness 工程配置 ====================
+    ENABLE_HARNESS: bool = True
+    """
+    是否启用 Harness 工程管控
+    
+    - True: 启用安全拦截、审计、容错等企业级管控
+    - False: 禁用 Harness，直接执行 Agent（仅用于开发测试）
+    
+    生产环境强烈建议启用
+    """
+    
+    HARNESS_ENABLE_SECURITY_INTERCEPTOR: bool = True
+    """是否启用安全拦截器"""
+    
+    HARNESS_ENABLE_PROMPT_INJECTION_PROTECTION: bool = True
+    """是否启用 Prompt 注入防护"""
+    
+    HARNESS_ENABLE_DATA_MASKING: bool = True
+    """是否启用数据脱敏"""
+    
+    HARNESS_ENABLE_TOOL_WHITELIST: bool = True
+    """是否启用工具白名单"""
+    
+    HARNESS_ENABLE_PATH_VALIDATION: bool = True
+    """是否启用路径校验"""
+    
+    HARNESS_ALLOWED_TOOLS: list = [
+        "calculator",
+        "web_search",
+        "document_parser",
+        "memory_search",
+        "python_executor"
+    ]
+    """
+    允许使用的工具白名单
+    
+    默认允许所有内置工具，可根据业务需求调整
+    """
+    
+    HARNESS_ALLOWED_DIRECTORIES: list = ["/tmp", "/data", "/app/uploads"]
+    """
+    允许访问的目录白名单
+    
+    用于文件路径安全校验，防止路径穿越攻击
+    """
+    
+    HARNESS_ENABLE_AUDIT_SYSTEM: bool = True
+    """是否启用审计系统"""
+    
+    HARNESS_AUDIT_LOG_LEVEL: str = "INFO"
+    """审计日志级别"""
+    
+    HARNESS_AUDIT_RETENTION_DAYS: int = 90
+    """审计日志保留天数"""
+    
+    HARNESS_ENABLE_FAULT_TOLERANCE: bool = True
+    """是否启用容错系统"""
+    
+    HARNESS_MAX_RETRY_ATTEMPTS: int = 3
+    """最大重试次数"""
+    
+    HARNESS_ENABLE_CIRCUIT_BREAKER: bool = True
+    """是否启用熔断器"""
+    
+    HARNESS_ENABLE_RATE_LIMITER: bool = True
+    """是否启用限流器"""
+    
+    HARNESS_MAX_REQUESTS_PER_MINUTE: int = 60
+    """每分钟最大请求数"""
+    
     @model_validator(mode='after')
     def set_llm_model_name(self):
         """

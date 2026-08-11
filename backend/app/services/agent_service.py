@@ -2,19 +2,24 @@
 Agent 服务层
 
 本模块封装 Agent 执行逻辑，提供给路由层调用。
+集成 Harness 工程管控，提供安全、可控、可审计的 Agent 执行能力。
 """
 from typing import Dict, Any, Optional, AsyncIterator, List
 import logging
 from uuid import uuid4
 
 from app.agent.core.agent_executor import AgentExecutor
+from app.agent.harness.harness import Harness, HarnessResult
 from app.models.database import SessionLocal
 from app.models.tables import Message, MessageRole
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
 
 _agent_executor = None
+_harness_instance = None
 
 
 def get_agent_executor() -> AgentExecutor:
@@ -71,16 +76,52 @@ async def close_agent_executor():
     _agent_executor = None
 
 
+def get_harness_instance() -> Harness:
+    """
+    获取 Harness 实例单例
+    
+    Returns:
+        Harness 实例
+    
+    注意：
+        如果未初始化，返回默认配置的 Harness 实例
+    """
+    global _harness_instance
+    if _harness_instance is None:
+        logger.info("Initializing Harness with settings...")
+        _harness_instance = Harness(
+            enable_security_interceptor=settings.HARNESS_ENABLE_SECURITY_INTERCEPTOR,
+            enable_prompt_injection_protection=settings.HARNESS_ENABLE_PROMPT_INJECTION_PROTECTION,
+            enable_data_masking=settings.HARNESS_ENABLE_DATA_MASKING,
+            enable_tool_whitelist=settings.HARNESS_ENABLE_TOOL_WHITELIST,
+            enable_path_validation=settings.HARNESS_ENABLE_PATH_VALIDATION,
+            allowed_tools=settings.HARNESS_ALLOWED_TOOLS,
+            allowed_directories=settings.HARNESS_ALLOWED_DIRECTORIES,
+            enable_audit_system=settings.HARNESS_ENABLE_AUDIT_SYSTEM,
+            audit_log_level=settings.HARNESS_AUDIT_LOG_LEVEL,
+            audit_retention_days=settings.HARNESS_AUDIT_RETENTION_DAYS,
+            enable_fault_tolerance=settings.HARNESS_ENABLE_FAULT_TOLERANCE,
+            max_retry_attempts=settings.HARNESS_MAX_RETRY_ATTEMPTS,
+            enable_circuit_breaker=settings.HARNESS_ENABLE_CIRCUIT_BREAKER,
+            enable_rate_limiter=settings.HARNESS_ENABLE_RATE_LIMITER,
+            max_requests_per_minute=settings.HARNESS_MAX_REQUESTS_PER_MINUTE
+        )
+        logger.info("Harness initialized successfully")
+    return _harness_instance
+
+
 class AgentService:
     """
     Agent 服务类
     
     封装 Agent 执行逻辑，管理会话和消息。
+    集成 Harness 工程管控，提供安全、可控、可审计的 Agent 执行能力。
     """
     
     def __init__(self):
         """初始化 Agent 服务"""
         self.executor = get_agent_executor()
+        self.harness = get_harness_instance() if settings.ENABLE_HARNESS else None
     
     async def chat(
         self,
@@ -91,7 +132,7 @@ class AgentService:
         document_ids: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
-        执行对话
+        执行对话（集成 Harness 管控）
         
         Args:
             session_id: 会话 ID
@@ -118,15 +159,54 @@ class AgentService:
         finally:
             db.close()
         
-        # 执行 Agent
-        result = await self.executor.run(
-            session_id=session_id,
-            user_input=user_input,
-            user_id=user_id,
-            knowledge_base_id=knowledge_base_id,
-            document_ids=document_ids,
-            metadata={"source": "api"}
-        )
+        # 执行 Agent（通过 Harness 管控）
+        if self.harness:
+            # 使用 Harness 管控执行
+            harness_result: HarnessResult = await self.harness.process_agent_request(
+                user_input=user_input,
+                session_id=session_id,
+                user_id=user_id or "anonymous",
+                agent_func=self.executor.run,
+                knowledge_base_id=knowledge_base_id,
+                document_ids=document_ids,
+                metadata={"source": "api"}
+            )
+            
+            # 转换 Harness 结果为标准格式
+            result = {
+                "success": harness_result.success,
+                "output": harness_result.data if harness_result.success else "",
+                "error": harness_result.error,
+                "metadata": {
+                    "audit_event_id": harness_result.audit_event_id,
+                    "violations_count": len(harness_result.violations),
+                    **(harness_result.metadata or {})
+                }
+            }
+            
+            # 如果有安全违规，记录详细信息
+            if harness_result.violations:
+                logger.warning(
+                    f"Security violations detected: {len(harness_result.violations)} violations"
+                )
+                result["violations"] = [
+                    {
+                        "type": v.violation_type,
+                        "severity": v.severity,
+                        "message": v.message
+                    }
+                    for v in harness_result.violations
+                ]
+        else:
+            # 未启用 Harness，直接执行
+            result = await self.executor.run(
+                session_id=session_id,
+                user_input=user_input,
+                user_id=user_id,
+                knowledge_base_id=knowledge_base_id,
+                document_ids=document_ids,
+                metadata={"source": "api"}
+            )
         
         # 保存助手消息到数据库
         if result.get("success"):
@@ -153,7 +233,7 @@ class AgentService:
         document_ids: Optional[List[str]] = None
     ) -> AsyncIterator[str]:
         """
-        流式执行对话
+        流式执行对话（集成 Harness 管控）
         
         Args:
             session_id: 会话 ID
@@ -166,6 +246,38 @@ class AgentService:
             SSE 格式的消息
         """
         logger.info(f"Streaming chat for session: {session_id}")
+        
+        # Harness 安全检查（流式场景）
+        if self.harness:
+            # 执行安全拦截检查
+            if self.harness.security_interceptor:
+                is_safe, processed_input, violations = self.harness.security_interceptor.intercept_agent_request(
+                    user_input, session_id, user_id or "anonymous"
+                )
+                
+                if not is_safe:
+                    # 返回安全违规错误
+                    import json
+                    error_event = {
+                        "event": "error",
+                        "data": {
+                            "error": "Security violation detected",
+                            "violations": [
+                                {
+                                    "type": v.violation_type,
+                                    "severity": v.severity,
+                                    "message": v.message
+                                }
+                                for v in violations
+                            ]
+                        }
+                    }
+                    yield f"data: {json.dumps(error_event)}\n\n"
+                    logger.warning(f"Stream chat blocked due to security violations: {len(violations)}")
+                    return
+                
+                # 使用处理后的输入
+                user_input = processed_input
         
         # 确保session存在，如果不存在则创建
         db = SessionLocal()

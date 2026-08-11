@@ -111,6 +111,21 @@ async def lifespan(app: FastAPI):
         logger.error(f"Error initializing agent executor: {e}", exc_info=True)
         logger.warning("Agent executor initialization failed, checkpoint may not work properly")
     
+    # 初始化 Harness 工程管控系统
+    try:
+        from app.services.agent_service import get_harness_instance
+        harness = get_harness_instance()
+        if harness:
+            logger.info(f"Harness system initialized successfully (ENABLE_HARNESS={settings.ENABLE_HARNESS})")
+            logger.info(f"  - Security Interceptor: {harness.security_interceptor is not None}")
+            logger.info(f"  - Audit System: {harness.audit_system is not None}")
+            logger.info(f"  - Fault Tolerance: {harness.fault_tolerance_system is not None}")
+        else:
+            logger.info("Harness system is disabled")
+    except Exception as e:
+        logger.error(f"Error initializing Harness system: {e}", exc_info=True)
+        logger.warning("Harness system initialization failed, security features may not work properly")
+    
     yield  # 应用运行期间
     
     # 清理资源
